@@ -8,5 +8,6 @@ bin_rnn/
 logs_rnn_local/
 bin_rnn_local/
 logs_local/
-bin_local/	
+bin_local/
+config.py	
 core*
