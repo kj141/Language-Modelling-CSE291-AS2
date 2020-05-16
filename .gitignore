@@ -5,4 +5,8 @@ dumps/
 simple-examples.tgz
 simple-examples/
 bin_rnn/
+logs_rnn_local/
+bin_rnn_local/
+logs_local/
+bin_local/	
 core*

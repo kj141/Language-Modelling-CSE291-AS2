@@ -24,9 +24,6 @@ logger = logging.getLogger(__name__)
 
 def main(args):
 
-    print('life is good')
-    sys.exit()
-
     ts = time.strftime('%Y-%b-%d-%H:%M:%S', time.gmtime())
 
     splits = ['train', 'valid'] + (['test'] if args.test else [])
@@ -156,6 +153,7 @@ def main(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
+    import config
 
     parser.add_argument('--data_dir', type=str, default='data')
     parser.add_argument('--create_data', action='store_true')
@@ -178,8 +176,8 @@ if __name__ == '__main__':
 
     parser.add_argument('-v','--print_every', type=int, default=50)
     parser.add_argument('-tb','--tensorboard_logging', action='store_false')
-    parser.add_argument('-log','--logdir', type=str, default='logs_rnn')
-    parser.add_argument('-bin','--save_model_path', type=str, default='bin_rnn')
+    parser.add_argument('-log','--logdir', type=str, default=config.logs_rnn)
+    parser.add_argument('-bin','--save_model_path', type=str, default=config.bin_rnn)
 
     args = parser.parse_args()
 
