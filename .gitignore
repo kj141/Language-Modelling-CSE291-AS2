@@ -9,5 +9,7 @@ logs_rnn_local/
 bin_rnn_local/
 logs_local/
 bin_local/
-config.py	
+config_.py
+env.py
+ignored.txt	
 core*

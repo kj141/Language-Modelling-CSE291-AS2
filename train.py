@@ -183,7 +183,7 @@ def main(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    import config
+    import env as config
 
     parser.add_argument('--data_dir', type=str, default='data')
     parser.add_argument('--create_data', action='store_true')
@@ -207,7 +207,7 @@ if __name__ == '__main__':
     parser.add_argument('-af', '--anneal_function', type=str, default='identity')
 
     parser.add_argument('-v','--print_every', type=int, default=50)
-    parser.add_argument('-tb','--tensorboard_logging', action='store_true')
+    parser.add_argument('-tb','--tensorboard_logging', action='storlogs = e_true')
     parser.add_argument('-log','--logdir', type=str, default=config.logs)
     parser.add_argument('-bin','--save_model_path', type=str, default=config.bin_)
 
