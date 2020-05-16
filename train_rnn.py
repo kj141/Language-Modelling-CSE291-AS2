@@ -13,6 +13,7 @@ from collections import OrderedDict, defaultdict
 from ptb import PTB
 from utils import to_var, idx2word, experiment_name_rnn
 from model_rnn import SentenceRNN
+import sys
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -22,6 +23,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main(args):
+
+    print('life is good')
+    sys.exit()
 
     ts = time.strftime('%Y-%b-%d-%H:%M:%S', time.gmtime())
 
