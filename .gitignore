@@ -4,6 +4,5 @@ data/
 dumps/
 simple-examples.tgz
 simple-examples/
-logs/
-logs_rnn/
 bin_rnn/
+core*

@@ -61,6 +61,7 @@ def main(args):
 
     if args.tensorboard_logging:
         writer = SummaryWriter(os.path.join(args.logdir, experiment_name_rnn(args,ts)))
+        print(os.path.join(args.logdir, experiment_name_rnn(args,ts)))
         writer.add_text("model", str(model))
         writer.add_text("args", str(args))
         writer.add_text("ts", ts)
@@ -158,7 +159,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_occ', type=int, default=1)
     parser.add_argument('--test', action='store_true')
 
-    parser.add_argument('-ep', '--epochs', type=int, default=10)
+    parser.add_argument('-ep', '--epochs', type=int, default=100)
     parser.add_argument('-bs', '--batch_size', type=int, default=32)
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.001)
 
@@ -172,7 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('-ed', '--embedding_dropout', type=float, default=0.5)
 
     parser.add_argument('-v','--print_every', type=int, default=50)
-    parser.add_argument('-tb','--tensorboard_logging', action='store_true')
+    parser.add_argument('-tb','--tensorboard_logging', action='store_false')
     parser.add_argument('-log','--logdir', type=str, default='logs_rnn')
     parser.add_argument('-bin','--save_model_path', type=str, default='bin_rnn')
 
