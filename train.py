@@ -13,6 +13,7 @@ from collections import OrderedDict, defaultdict
 from ptb import PTB
 from utils import to_var, idx2word, experiment_name
 from model import SentenceVAE
+import math
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
