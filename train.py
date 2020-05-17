@@ -71,6 +71,12 @@ def main(args):
     def kl_anneal_function(anneal_function, step):
         if anneal_function == 'identity':
             return 1
+        if anneal_function == 'linear':
+            return float(step)/10
+        if anneal_function == 'sigmoid':
+            return (1/(1 + math.exp(-step)))/(1/(1 + math.exp(-10)))
+        if anneal_function == 'tanh':
+            return math.tanh(step)/math.tanh(10)
 
     ReconLoss = torch.nn.NLLLoss(size_average=False, ignore_index=datasets['train'].pad_idx)
     def loss_fn(logp, target, length, mean, logv, anneal_function, step):
@@ -146,7 +152,7 @@ def main(args):
 
                 if args.tensorboard_logging:
                     writer.add_scalar("%s/Negative_ELBO"%split.upper(), loss.data[0], epoch*len(data_loader) + iteration)
-                    writer.add_scalar("%s/Recon_Loss"%split.upper(), recon_loss.data[0]/batch_size, epoch*len(data_loader) + iteration)
+                    writer.add_scalar("%s/Recon_Loss"%split.upper(), reco.  n_loss.data[0]/batch_size, epoch*len(data_loader) + iteration)
                     writer.add_scalar("%s/KL_Loss"%split.upper(), KL_loss.data[0]/batch_size, epoch*len(data_loader) + iteration)
                     writer.add_scalar("%s/KL_Weight"%split.upper(), KL_weight, epoch*len(data_loader) + iteration)
 
@@ -204,7 +210,7 @@ if __name__ == '__main__':
     parser.add_argument('-wd', '--word_dropout', type=float, default=0)
     parser.add_argument('-ed', '--embedding_dropout', type=float, default=0.5)
 
-    parser.add_argument('-af', '--anneal_function', type=str, default='identity')
+    parser.add_argument('-af', '--anneal_function', type=str, default='linear')
 
     parser.add_argument('-v','--print_every', type=int, default=50)
     parser.add_argument('-tb','--tensorboard_logging', action='store_false')
