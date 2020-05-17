@@ -75,9 +75,9 @@ def main(args):
         if anneal_function == 'linear':
             return float(step)/14000
         if anneal_function == 'sigmoid':
-            return (1/(1 + math.exp(-step)))/(1/(1 + math.exp(-14000)))
+            return (1/(1 + math.exp(-float(step)/300)))
         if anneal_function == 'tanh':
-            return math.tanh(step)/math.tanh(14000)
+            return math.tanh(float(step)/300)
 
     ReconLoss = torch.nn.NLLLoss(size_average=False, ignore_index=datasets['train'].pad_idx)
     def loss_fn(logp, target, length, mean, logv, anneal_function, step):
