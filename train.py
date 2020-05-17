@@ -152,7 +152,7 @@ def main(args):
 
                 if args.tensorboard_logging:
                     writer.add_scalar("%s/Negative_ELBO"%split.upper(), loss.data[0], epoch*len(data_loader) + iteration)
-                    writer.add_scalar("%s/Recon_Loss"%split.upper(), reco.  n_loss.data[0]/batch_size, epoch*len(data_loader) + iteration)
+                    writer.add_scalar("%s/Recon_Loss"%split.upper(), recon_loss.data[0]/batch_size, epoch*len(data_loader) + iteration)
                     writer.add_scalar("%s/KL_Loss"%split.upper(), KL_loss.data[0]/batch_size, epoch*len(data_loader) + iteration)
                     writer.add_scalar("%s/KL_Weight"%split.upper(), KL_weight, epoch*len(data_loader) + iteration)
 
