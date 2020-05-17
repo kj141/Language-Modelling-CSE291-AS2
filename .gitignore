@@ -13,3 +13,4 @@ config_.py
 env.py
 ignored.txt	
 core*
+*.pdf

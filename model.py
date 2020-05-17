@@ -49,23 +49,28 @@ class SentenceVAE(nn.Module):
 
     def forward(self, input_sequence, length):
 
+        # print(input_sequence.size())
         batch_size = input_sequence.size(0)
         sorted_lengths, sorted_idx = torch.sort(length, descending=True)
         input_sequence = input_sequence[sorted_idx]
 
         # ENCODER
         input_embedding = self.embedding(input_sequence)
+        #print('input embedding size : ', input_embedding.size())
 
         packed_input = rnn_utils.pack_padded_sequence(input_embedding, sorted_lengths.data.tolist(), batch_first=True)
+        #print('packed input size : ', packed_input.data.shape)
 
         _, hidden = self.encoder_rnn(packed_input)
 
+        #print('hidden shape before : ', hidden.size())
         if self.bidirectional or self.num_layers > 1:
             # flatten hidden state
             hidden = hidden.view(batch_size, self.hidden_size*self.hidden_factor)
         else:
             hidden = hidden.squeeze()
 
+        #print('hidden shape after : ', hidden.size())
         # REPARAMETERIZATION
         mean = self.hidden2mean(hidden)
         logv = self.hidden2logv(hidden)
@@ -89,6 +94,9 @@ class SentenceVAE(nn.Module):
             prob = torch.rand(input_sequence.size())
             if torch.cuda.is_available():
                 prob=prob.cuda()
+            # print((input_sequence.data - self.sos_idx).size())
+            #print((input_sequence.data - self.sos_idx) * (input_sequence.data - self.pad_idx))
+            #print(((input_sequence.data - self.sos_idx) * (input_sequence.data - self.pad_idx)) == 0)
             prob[(input_sequence.data - self.sos_idx) * (input_sequence.data - self.pad_idx) == 0] = 1
             decoder_input_sequence = input_sequence.clone()
             decoder_input_sequence[prob < self.word_dropout_rate] = self.unk_idx
@@ -101,7 +109,9 @@ class SentenceVAE(nn.Module):
 
         # process outputs
         padded_outputs = rnn_utils.pad_packed_sequence(outputs, batch_first=True)[0]
+        #print('padded outputs shape before : ', padded_outputs.size())
         padded_outputs = padded_outputs.contiguous()
+        #print('padded outputs shape after : ', padded_outputs.size())
         _,reversed_idx = torch.sort(sorted_idx)
         padded_outputs = padded_outputs[reversed_idx]
         b,s,_ = padded_outputs.size()
