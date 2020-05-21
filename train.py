@@ -69,18 +69,22 @@ def main(args):
     save_model_path = os.path.join(args.save_model_path, ts)
     os.makedirs(save_model_path)
 
-    def kl_anneal_function(anneal_function, step):
-        if anneal_function == 'identity':
+    def kl_anneal_function(anneal_function, step, totalIterations, split):
+        if(split != 'train'):
             return 1
-        if anneal_function == 'linear':
-            return float(step)/14000
-        if anneal_function == 'sigmoid':
-            return (1/(1 + math.exp(-float(step)/300)))
-        if anneal_function == 'tanh':
-            return math.tanh(float(step)/300)
+        elif anneal_function == 'identity':
+            return 1
+        elif anneal_function == 'linear':
+            return 1.005*float(step)/totalIterations
+        elif anneal_function == 'sigmoid':
+            return (1/(1 + math.exp(-8*(float(step)/totalIterations))))
+        elif anneal_function == 'tanh':
+            return math.tanh(4*(float(step)/totalIterations))
+        else:
+            return 1
 
     ReconLoss = torch.nn.NLLLoss(size_average=False, ignore_index=datasets['train'].pad_idx)
-    def loss_fn(logp, target, length, mean, logv, anneal_function, step):
+    def loss_fn(logp, target, length, mean, logv, anneal_function, step, totalIterations, split):
 
         # cut-off unnecessary padding from target, and flatten
         target = target[:, :torch.max(length).data[0]].contiguous().view(-1)
@@ -91,7 +95,7 @@ def main(args):
 
         # KL Divergence
         KL_loss = -0.5 * torch.sum(1 + logv - mean.pow(2) - logv.exp())
-        KL_weight = kl_anneal_function(anneal_function, step)
+        KL_weight = kl_anneal_function(anneal_function, step, totalIterations, split)
 
         return recon_loss, KL_loss, KL_weight
 
@@ -110,6 +114,8 @@ def main(args):
                 num_workers=cpu_count(),
                 pin_memory=torch.cuda.is_available()
             )
+            
+            totalIterations = (int(len(datasets[split])/args.batch_size) + 1)*args.epochs
 
             tracker = defaultdict(tensor)
 
@@ -132,7 +138,7 @@ def main(args):
 
                 # loss calculation
                 recon_loss, KL_loss, KL_weight = loss_fn(logp, batch['target'],
-                    batch['length'], mean, logv, args.anneal_function, step)
+                    batch['length'], mean, logv, args.anneal_function, step, totalIterations, split)
 
                 if split == 'train':
                     loss = (recon_loss + KL_weight * KL_loss)/batch_size
