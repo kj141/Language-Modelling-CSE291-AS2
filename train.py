@@ -80,6 +80,17 @@ def main(args):
             return (1/(1 + math.exp(-8*(float(step)/totalIterations))))
         elif anneal_function == 'tanh':
             return math.tanh(4*(float(step)/totalIterations))
+        elif anneal_function == 'linear_capped':
+            #print(float(step)*30/totalIterations)
+            return min(1.0, float(step)*5/totalIterations)
+        elif anneal_function == 'cyclic':
+            quantile = int(totalIterations/5)
+            remainder = int(step % quantile)
+            midPoint = int(quantile/2)
+            if(remainder > midPoint):
+              return 1
+            else:
+              return float(remainder)/midPoint 
         else:
             return 1
 
@@ -94,7 +105,10 @@ def main(args):
         recon_loss = ReconLoss(logp, target)
 
         # KL Divergence
+        #print((1 + logv - mean.pow(2) - logv.exp()).size())
+
         KL_loss = -0.5 * torch.sum(1 + logv - mean.pow(2) - logv.exp())
+        #print(KL_loss.size())
         KL_weight = kl_anneal_function(anneal_function, step, totalIterations, split)
 
         return recon_loss, KL_loss, KL_weight
@@ -102,6 +116,10 @@ def main(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
     tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
+    tensor2 = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
+    tensor3 = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
+    tensor4 = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
+
     step = 0
     for epoch in range(args.epochs):
 
@@ -118,6 +136,9 @@ def main(args):
             totalIterations = (int(len(datasets[split])/args.batch_size) + 1)*args.epochs
 
             tracker = defaultdict(tensor)
+            tracker2 = defaultdict(tensor2)
+            tracker3 = defaultdict(tensor3)
+            tracker4 = defaultdict(tensor4)
 
             # Enable/Disable Dropout
             if split == 'train':
@@ -141,6 +162,7 @@ def main(args):
                     batch['length'], mean, logv, args.anneal_function, step, totalIterations, split)
 
                 if split == 'train':
+                    #KL_loss_thresholded = torch.clamp(KL_loss, min=6.0)
                     loss = (recon_loss + KL_weight * KL_loss)/batch_size
                 else:
                     # report complete elbo when validation
@@ -156,6 +178,10 @@ def main(args):
 
                 # bookkeepeing
                 tracker['negELBO'] = torch.cat((tracker['negELBO'], loss.data))
+                tracker2['KL_loss'] = torch.cat((tracker2['KL_loss'], KL_loss.data))
+                tracker3['Recon_loss'] = torch.cat((tracker3['Recon_loss'], recon_loss.data))
+                tracker4['Perplexity'] = torch.cat((tracker4['Perplexity'], torch.exp(recon_loss.data/batch_size)))
+
 
                 if args.tensorboard_logging:
                     writer.add_scalar("%s/Negative_ELBO"%split.upper(), loss.data[0], epoch*len(data_loader) + iteration)
@@ -177,20 +203,23 @@ def main(args):
 
             if args.tensorboard_logging:
                 writer.add_scalar("%s-Epoch/NegELBO"%split.upper(), torch.mean(tracker['negELBO']), epoch)
+                writer.add_scalar("%s-Epoch/KL_loss"%split.upper(), torch.mean(tracker2['KL_loss'])/batch_size, epoch)
+                writer.add_scalar("%s-Epoch/Recon_loss"%split.upper(), torch.mean(tracker3['Recon_loss'])/batch_size, epoch)
+                writer.add_scalar("%s-Epoch/Perplexity"%split.upper(), torch.mean(tracker4['Perplexity']), epoch)
 
             # save a dump of all sentences and the encoded latent space
             if split == 'valid':
                 dump = {'target_sents':tracker['target_sents'], 'z':tracker['z'].tolist()}
-                if not os.path.exists(os.path.join('dumps', ts)):
-                    os.makedirs('dumps/'+ts)
-                with open(os.path.join('dumps/'+ts+'/valid_E%i.json'%epoch), 'w') as dump_file:
+                if not os.path.exists(os.path.join('dumps_32_0', ts)):
+                    os.makedirs('dumps_32_0/'+ts)
+                with open(os.path.join('dumps_32_0/'+ts+'/valid_E%i.json'%epoch), 'w') as dump_file:
                     json.dump(dump,dump_file)
 
             # save checkpoint
-            if split == 'train':
-                checkpoint_path = os.path.join(save_model_path, "E%i.pytorch"%(epoch))
-                torch.save(model.state_dict(), checkpoint_path)
-                logger.info("Model saved at %s"%checkpoint_path)
+            # if split == 'train':
+            #     checkpoint_path = os.path.join(save_model_path, "E%i.pytorch"%(epoch))
+            #     torch.save(model.state_dict(), checkpoint_path)
+            #     logger.info("Model saved at %s"%checkpoint_path)
 
 
 if __name__ == '__main__':
@@ -202,9 +231,9 @@ if __name__ == '__main__':
     parser.add_argument('--create_data', action='store_true')
     parser.add_argument('--max_sequence_length', type=int, default=60)
     parser.add_argument('--min_occ', type=int, default=1)
-    parser.add_argument('--test', action='store_true')
+    parser.add_argument('--test', action='store_false')
 
-    parser.add_argument('-ep', '--epochs', type=int, default=10)
+    parser.add_argument('-ep', '--epochs', type=int, default=20)
     parser.add_argument('-bs', '--batch_size', type=int, default=32)
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.001)
 
@@ -214,7 +243,7 @@ if __name__ == '__main__':
     parser.add_argument('-nl', '--num_layers', type=int, default=1)
     parser.add_argument('-bi', '--bidirectional', action='store_true')
     parser.add_argument('-ls', '--latent_size', type=int, default=16)
-    parser.add_argument('-wd', '--word_dropout', type=float, default=0)
+    parser.add_argument('-wd', '--word_dropout', type=float, default=0.0)
     parser.add_argument('-ed', '--embedding_dropout', type=float, default=0.5)
 
     parser.add_argument('-af', '--anneal_function', type=str, default='linear')
