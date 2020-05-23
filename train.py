@@ -11,10 +11,39 @@ from torch.utils.data import DataLoader
 from collections import OrderedDict, defaultdict
 
 from ptb import PTB
+from mixed import Mixed
 from utils import to_var, idx2word, experiment_name
 from model import SentenceVAE
 import math
+from sklearn.manifold import TSNE
 
+import matplotlib.pyplot as plt
+import matplotlib.patheffects as PathEffects
+import matplotlib
+
+import seaborn as sns
+sns.set_style('darkgrid')
+sns.set_palette('muted')
+sns.set_context("notebook", font_scale=1.5,
+                rc={"lines.linewidth": 2.5})
+
+def scatter(x, colors, labelsOfInterest, figSize, plotName):
+    # We choose a color palette with seaborn.
+    colors = np.array(colors)
+    palette = np.array(sns.color_palette("hls", max(labelsOfInterest)+1))
+
+    # We create a scatter plot.
+    f = plt.figure(figsize=figSize)
+    ax = plt.subplot(aspect='equal')
+    sc = ax.scatter(x[:,0], x[:,1], lw=0, s=40,
+                    c=palette[colors.astype(np.int)])
+    plt.xlim(-25, 25)
+    plt.ylim(-25, 25)
+    plt.title(plotName)
+    #ax.legend([plotName])
+    ax.axis('off')
+    ax.axis('tight')
+    
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
@@ -29,8 +58,9 @@ def main(args):
     splits = ['train', 'valid'] + (['test'] if args.test else [])
 
     datasets = OrderedDict()
+    curBest = 1000000
     for split in splits:
-        datasets[split] = PTB(
+        datasets[split] = Mixed(
             data_dir=args.data_dir,
             split=split,
             create_data=args.create_data,
@@ -121,10 +151,20 @@ def main(args):
     tensor4 = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
 
     step = 0
+    stop = False
+    Z = []
+    L = []
     for epoch in range(args.epochs):
-
+        if(stop):
+            break
         for split in splits:
-
+            if(split == 'test'):
+                z_data = []
+                domain_label = []
+                z_bool = False
+                domain_label_bool = False
+            if(stop):
+                break
             data_loader = DataLoader(
                 dataset=datasets[split],
                 batch_size=args.batch_size,
@@ -147,8 +187,10 @@ def main(args):
                 model.eval()
 
             for iteration, batch in enumerate(data_loader):
-
+#                 if(iteration > 400):
+#                     break
                 batch_size = batch['input'].size(0)
+                labels = batch['label']
 
                 for k, v in batch.items():
                     if torch.is_tensor(v):
@@ -156,6 +198,15 @@ def main(args):
 
                 # Forward pass
                 logp, mean, logv, z = model(batch['input'], batch['length'])
+                if(split == 'test'):
+                    if(z_bool == False):
+                        z_bool = True
+                        domain_label = labels.tolist()
+                        z_data = z
+                    else:
+                        domain_label += labels.tolist()
+                        #print(domain_label)
+                        z_data = torch.cat((z_data, z), 0)
 
                 # loss calculation
                 recon_loss, KL_loss, KL_weight = loss_fn(logp, batch['target'],
@@ -174,8 +225,7 @@ def main(args):
                     loss.backward()
                     optimizer.step()
                     step += 1
-
-
+                
                 # bookkeepeing
                 tracker['negELBO'] = torch.cat((tracker['negELBO'], loss.data))
                 tracker2['KL_loss'] = torch.cat((tracker2['KL_loss'], KL_loss.data))
@@ -192,7 +242,11 @@ def main(args):
                 if iteration % args.print_every == 0 or iteration+1 == len(data_loader):
                     logger.info("%s Batch %04d/%i, Loss %9.4f, Recon-Loss %9.4f, KL-Loss %9.4f, KL-Weight %6.3f"
                         %(split.upper(), iteration, len(data_loader)-1, loss.data[0], recon_loss.data[0]/batch_size, KL_loss.data[0]/batch_size, KL_weight))
-
+                    
+                if(split == 'test'):
+                    Z = z_data
+                    L = domain_label
+                    
                 if split == 'valid':
                     if 'target_sents' not in tracker:
                         tracker['target_sents'] = list()
@@ -209,6 +263,10 @@ def main(args):
 
             # save a dump of all sentences and the encoded latent space
             if split == 'valid':
+                if(torch.mean(tracker['negELBO']) < curBest):
+                    curBest = torch.mean(tracker['negELBO'])
+                else:
+                    stop = True
                 dump = {'target_sents':tracker['target_sents'], 'z':tracker['z'].tolist()}
                 if not os.path.exists(os.path.join('dumps_32_0', ts)):
                     os.makedirs('dumps_32_0/'+ts)
@@ -220,20 +278,28 @@ def main(args):
             #     checkpoint_path = os.path.join(save_model_path, "E%i.pytorch"%(epoch))
             #     torch.save(model.state_dict(), checkpoint_path)
             #     logger.info("Model saved at %s"%checkpoint_path)
-
-
+    
+    Z = Z.data.cpu().numpy()
+    print(Z.shape)
+    beforeTSNE = TSNE(random_state=20150101).fit_transform(Z)
+    scatter(beforeTSNE, L, [0,1,2], (5,5), 'latent discoveries')
+    plt.savefig('mixed_tsne'+args.anneal_function+'.png', dpi=120)
+    
+    
+    
+    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     import env as config
 
-    parser.add_argument('--data_dir', type=str, default='data')
+    parser.add_argument('--data_dir', type=str, default='data_mixed')
     parser.add_argument('--create_data', action='store_true')
     parser.add_argument('--max_sequence_length', type=int, default=60)
     parser.add_argument('--min_occ', type=int, default=1)
     parser.add_argument('--test', action='store_false')
 
-    parser.add_argument('-ep', '--epochs', type=int, default=20)
+    parser.add_argument('-ep', '--epochs', type=int, default=40)
     parser.add_argument('-bs', '--batch_size', type=int, default=32)
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.001)
 
