@@ -14,3 +14,4 @@ env.py
 ignored.txt	
 core*
 *.pdf
+dumps*
